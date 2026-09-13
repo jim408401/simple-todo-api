@@ -1,0 +1,9 @@
+services:
+  todo-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: simple-todo-api
+    ports:
+      - "5001:5000"
+    restart: unless-stopped
