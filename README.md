@@ -1,99 +1,212 @@
-# Simple Todo API — CI/CD 練習專案
+# Simple Todo API
 
-一個刻意做得很簡單的 Flask Todo API，重點不在功能複雜度，而是完整走過一次 CI/CD 流程：
-**Git → Jenkins → Pytest → Docker → 部署**。
+A lightweight RESTful Todo API built with **Python, Flask, Pytest, Jenkins, Docker, and GitHub**, demonstrating an automated CI/CD workflow from source control to deployment.
 
-## 架構圖（文字版）
+## Overview
 
-```
-開發者 push code
-      │
-      ▼
-   Git repo (GitHub)  ──webhook──▶  Jenkins
-                                       │
-                          ┌────────────┼────────────┐
-                          ▼            ▼             ▼
-                     Checkout    安裝依賴       Lint (flake8)
-                          │
-                          ▼
-                    Pytest 單元測試
-                          │
-                    測試通過？
-                     ┌────┴────┐
-                    Yes        No → Pipeline 標記失敗，通知
-                     │
-                     ▼
-              docker build image
-                     │
-                     ▼
-          docker run 部署到目標環境
-                     │
-                     ▼
-            Smoke Test（打 /health 確認存活）
+This project demonstrates an end-to-end CI/CD pipeline:
+
+```text
+GitHub Push
+     ↓
+GitHub Webhook
+     ↓
+Jenkins
+     ↓
+Checkout
+     ↓
+Lint (Flake8)
+     ↓
+Unit Test (Pytest)
+     ↓
+Docker Build
+     ↓
+Deploy Container
+     ↓
+Smoke Test (/health)
 ```
 
-## 專案結構
+If linting or tests fail, the pipeline stops and the application is not deployed.
 
-```
+## Tech Stack
+
+| Category         | Technology     |
+| ---------------- | -------------- |
+| Backend          | Python / Flask |
+| Testing          | Pytest         |
+| Code Quality     | Flake8         |
+| CI/CD            | Jenkins        |
+| Containerization | Docker         |
+| Source Control   | Git / GitHub   |
+| Integration      | GitHub Webhook |
+
+## Project Structure
+
+```text
 simple-todo-api/
 ├── app/
 │   ├── __init__.py
-│   └── main.py          # Flask API 主程式
+│   └── main.py
 ├── tests/
-│   └── test_main.py     # pytest 測試
+│   └── test_main.py
 ├── requirements.txt
+├── requirements-dev.txt
 ├── Dockerfile
 ├── docker-compose.yml
-├── Jenkinsfile           # Pipeline 定義（Pipeline as Code）
+├── Jenkinsfile
 └── .gitignore
 ```
 
-## API 端點
+## API
 
-| Method | Path            | 說明             |
-|--------|-----------------|------------------|
-| GET    | /health         | 健康檢查         |
-| GET    | /todos          | 取得所有待辦事項 |
-| GET    | /todos/<id>     | 取得單一待辦事項 |
-| POST   | /todos          | 新增待辦事項     |
-| PUT    | /todos/<id>     | 更新待辦事項     |
-| DELETE | /todos/<id>     | 刪除待辦事項     |
+| Method | Endpoint      | Description   |
+| ------ | ------------- | ------------- |
+| GET    | `/health`     | Health check  |
+| GET    | `/todos`      | Get all todos |
+| GET    | `/todos/<id>` | Get a todo    |
+| POST   | `/todos`      | Create a todo |
+| PUT    | `/todos/<id>` | Update a todo |
+| DELETE | `/todos/<id>` | Delete a todo |
 
-## 本機開發
+## Local Development
+
+Create a virtual environment and install dependencies:
 
 ```bash
 python3 -m venv venv
 source venv/bin/activate
-pip install -r requirements.txt
+pip install -r requirements-dev.txt
+```
 
-# 跑測試
+Run tests:
+
+```bash
 pytest tests/ -v
+```
 
-# 本機啟動
+Start the application:
+
+```bash
 python app/main.py
 ```
 
-## 用 Docker 跑
+The API will be available at:
+
+```text
+http://localhost:5000
+```
+
+## Docker
+
+Build the image:
 
 ```bash
 docker build -t simple-todo-api .
-docker run -p 5000:5000 simple-todo-api
-
-# 或直接用 docker-compose
-docker-compose up --build
 ```
 
-## 設定 Jenkins Pipeline
+Run the container:
 
-1. 把這個專案 push 到你自己的 GitHub repo
-2. Jenkins 安裝 Docker Pipeline plugin（讓 agent 能執行 `docker` 指令）
-3. 新增一個 Pipeline Job，Pipeline 來源選擇「Pipeline script from SCM」，指向你的 repo，Script Path 填 `Jenkinsfile`
-4. 在 GitHub repo 設定 webhook，指向 Jenkins 的 `/github-webhook/` endpoint，讓 push 自動觸發 build
-5. （選用）如果要推送到 Docker Hub，先在 Jenkins 的 Credentials 裡新增帳密，Jenkinsfile 裡的註解區塊可以直接打開使用
+```bash
+docker run -d \
+  --name simple-todo-api \
+  -p 5000:5000 \
+  simple-todo-api
+```
 
-## 下一步可以加強的地方
+Or use Docker Compose:
 
-- 加上 `pytest-cov` 的覆蓋率門檻（例如低於 80% 就讓 pipeline fail）
-- 把部署目標換成真正的雲端 VM（GCP/AWS 免費額度）或 Kubernetes
-- 加上 Slack/Email 通知，pipeline 失敗時自動通知
-- 導入 staging / production 兩階段部署，加上人工核准（Jenkins 的 `input` step）
+```bash
+docker compose up --build
+```
+
+## CI/CD Pipeline
+
+The Jenkins pipeline is defined as code in `Jenkinsfile`.
+
+### Pipeline Stages
+
+```text
+Checkout
+   ↓
+Install Dependencies
+   ↓
+Lint
+   ↓
+Unit Test
+   ↓
+Docker Build
+   ↓
+Deploy
+   ↓
+Smoke Test
+```
+
+### Deployment
+
+After all validation steps pass, Jenkins builds a versioned Docker image:
+
+```text
+simple-todo-api:${BUILD_NUMBER}
+```
+
+The previous container is replaced with the new version.
+
+### Smoke Test
+
+After deployment, Jenkins verifies the service:
+
+```bash
+curl --fail http://localhost:5001/health
+```
+
+Expected response:
+
+```json
+{
+  "status": "ok"
+}
+```
+
+This ensures the newly deployed container is running and responding correctly.
+
+## Key Engineering Practices
+
+* **CI automation** — automatically run linting and tests on every push.
+* **Pipeline as Code** — Jenkins pipeline is version-controlled through `Jenkinsfile`.
+* **Containerized deployment** — package the application as a Docker image.
+* **Build versioning** — use Jenkins Build Number to identify Docker images.
+* **Deployment verification** — perform a post-deployment health check.
+* **Failure protection** — failed validation prevents deployment.
+
+## Future Improvements
+
+* Add `pytest-cov` and coverage thresholds
+* Push images to Docker Registry
+* Add staging / production environments
+* Add Discord / Slack notifications
+* Introduce database persistence
+* Deploy to Kubernetes
+
+## CI/CD Result
+
+The complete workflow is:
+
+```text
+Developer
+   ↓
+Git Push
+   ↓
+GitHub
+   ↓ Webhook
+Jenkins
+   ↓
+Test & Validate
+   ↓
+Docker Build
+   ↓
+Deploy
+   ↓
+Smoke Test
+   ↓
+SUCCESS
+```
