@@ -6,6 +6,8 @@ pipeline {
         IMAGE_NAME = "simple-todo-api"
         CONTAINER_NAME = "simple-todo-api"
         PORT = "5000"
+
+        PATH = "/usr/local/bin:/opt/homebrew/bin:${env.PATH}"
     }
 
     stages {
@@ -21,6 +23,7 @@ pipeline {
                 sh """
                     python3 -m venv venv
                     . venv/bin/activate
+
                     pip install --upgrade pip
                     pip install -r requirements-dev.txt
                 """
@@ -31,6 +34,7 @@ pipeline {
             steps {
                 sh """
                     . venv/bin/activate
+
                     flake8 app tests
                 """
             }
@@ -40,7 +44,8 @@ pipeline {
             steps {
                 sh """
                     . venv/bin/activate
-                    pytest tests/ -v
+
+                    PYTHONPATH=. pytest tests/ -v
                 """
             }
         }
@@ -48,6 +53,8 @@ pipeline {
         stage("Docker Build") {
             steps {
                 sh """
+                    docker --version
+
                     docker build \
                         -t ${IMAGE_NAME}:${BUILD_NUMBER} \
                         -t ${IMAGE_NAME}:latest \
@@ -93,7 +100,7 @@ pipeline {
 
         always {
             sh """
-                docker ps -a
+                docker ps -a || true
             """
         }
     }
