@@ -5,7 +5,7 @@ pipeline {
     environment {
         IMAGE_NAME = "simple-todo-api"
         CONTAINER_NAME = "simple-todo-api"
-        PORT = "5000"
+        PORT = "5001"
 
         PATH = "/usr/local/bin:/opt/homebrew/bin:${env.PATH}"
     }
